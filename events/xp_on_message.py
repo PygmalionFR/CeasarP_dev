@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import os
+from utils.utils import create_xp_card
 
 class XPMessageEvents(commands.Cog):
     def __init__(self, bot):
@@ -18,7 +19,8 @@ class XPMessageEvents(commands.Cog):
         with open(self.data_file, 'w') as file:
             json.dump(data, file, indent=4)
 
-    def get_xp_for_next_level(self, level):
+    @staticmethod
+    def get_xp_for_next_level(level):
         if level == 0:
             return 1
         elif level == 1:
@@ -36,34 +38,37 @@ class XPMessageEvents(commands.Cog):
         user_data = data[server_id][user_id]
         user_data['xp'] += xp_gain
 
+        leveled_up = False
         while user_data['xp'] >= self.get_xp_for_next_level(user_data['level']):
             user_data['xp'] -= self.get_xp_for_next_level(user_data['level'])
             user_data['level'] += 1
-            self.save_data(data)
-            return user_data['level']
+            leveled_up = True
 
-        self.save_data(data)
-        return None
+        self.save_data(data)  # On sauvegarde après toutes les mises à jour
 
-    def create_xp_bar(self, xp, max_xp):
-        # Calculer la progression de la barre d'XP
-        progress = int((xp / max_xp) * 20)
-        bar = '□' * progress + '■' * (20 - progress)
-        return f'[{bar}]'
+        return user_data['level'] if leveled_up else None
 
-    async def send_level_up_embed(self, user, level, xp, max_xp, server_id):
+    async def send_level_up_image(self, user, level, xp, max_xp, server_id):
+        """Envoie l'image de la carte d'XP."""
         data = self.load_data()
         xp_log_channel_id = data.get(server_id, {}).get('xp_log_channel')
 
+        print(f"XP Log Channel ID: {xp_log_channel_id}")  # Debug
         if xp_log_channel_id:
             channel = self.bot.get_channel(xp_log_channel_id)
+            print(f"Channel trouvé : {channel}")  # Debug
+
             if channel:
-                embed = discord.Embed(title=f"Niveau {level} atteint !", color=discord.Color.green())
-                embed.set_thumbnail(url=user.avatar.url)
-                embed.add_field(name="Membre", value=user.mention, inline=False)
-                embed.add_field(name="Niveau", value=level, inline=False)
-                embed.add_field(name="Barre d'XP", value=self.create_xp_bar(xp, max_xp), inline=False)
-                await channel.send(embed=embed)
+                xp_card_image = create_xp_card(user, level, xp, max_xp)
+                try:
+                    await channel.send(file=xp_card_image)
+                    print("Image envoyée avec succès.")
+                except discord.HTTPException as e:
+                    print(f"Erreur lors de l'envoi de l'image : {e}")
+            else:
+                print("Erreur : Le canal n'a pas été trouvé.")
+        else:
+            print("Erreur : Le canal de logs XP n'est pas défini.")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -78,7 +83,8 @@ class XPMessageEvents(commands.Cog):
         if new_level:
             data = self.load_data()
             user_data = data[server_id][user_id]
-            await self.send_level_up_embed(message.author, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
+            print(f"User data: {user_data}")  # Debug
+            await self.send_level_up_image(message.author, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
 
         # Ajouter XP pour une réponse
         if message.reference and message.reference.resolved:
@@ -86,7 +92,8 @@ class XPMessageEvents(commands.Cog):
             if new_level:
                 data = self.load_data()
                 user_data = data[server_id][user_id]
-                await self.send_level_up_embed(message.author, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
+                print(f"User data: {user_data}")  # Debug
+                await self.send_level_up_image(message.author, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
 
         # Ajouter XP pour une interaction avec un emoji
         for reaction in message.reactions:
@@ -96,7 +103,8 @@ class XPMessageEvents(commands.Cog):
                     if new_level:
                         data = self.load_data()
                         user_data = data[server_id][str(user.id)]
-                        await self.send_level_up_embed(user, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
+                        print(f"User data: {user_data}")  # Debug
+                        await self.send_level_up_image(user, new_level, user_data['xp'], self.get_xp_for_next_level(new_level), server_id)
 
 async def setup(bot):
     await bot.add_cog(XPMessageEvents(bot))
