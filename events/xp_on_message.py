@@ -7,7 +7,7 @@ from utils.utils import create_xp_card
 class XPMessageEvents(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.data_file = 'data/data.json'
+        self.data_file = 'data/xp_data.json'
 
     def load_data(self):
         if os.path.exists(self.data_file):

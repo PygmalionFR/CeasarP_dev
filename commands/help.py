@@ -1,30 +1,34 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import json
-import os
+from utils.utils import get_db_connection
 
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.servers_file = 'data/servers.json'
 
-    def load_servers_data(self):
-        if os.path.exists(self.servers_file):
-            with open(self.servers_file, 'r') as file:
-                return json.load(file)
-        return {}
+    def get_server_roles(self, server_id):
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Récupérer les IDs des rôles pour le serveur
+        select_query = f"""
+        SELECT fondateur_id, admin_id, modo_id, membreplus_id, membre_id
+        FROM server_{server_id}
+        WHERE server_id = %s
+        """
+        cursor.execute(select_query, (server_id,))
+        result = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        return result if result else (None, None, None, None, None)
 
     @app_commands.command(name="help", description="Affiche l'aide pour toutes les commandes")
     async def help_slash(self, interaction: discord.Interaction):
-        data = self.load_servers_data()
-        server_id = str(interaction.guild.id)
-
-        fonda = data[server_id].get('fondateur_id')
-        admin = data[server_id].get('admin_id')
-        modo = data[server_id].get('modo_id')
-        membreplus = data[server_id].get('membreplus_id')
-        membre = data[server_id].get('membre_id')
+        server_id = interaction.guild.id
+        fonda, admin, modo, membreplus, membre = self.get_server_roles(server_id)
 
         admin_commands = [
             {"command": "/setxplog", "description": "Définit un canal pour les logs d'XP", "role": f"<@&{fonda}>"},

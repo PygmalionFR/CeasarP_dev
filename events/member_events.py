@@ -25,7 +25,7 @@ class MemberEvents(commands.Cog):
             if general_channel:
                 embed = discord.Embed(
                     title=f"Bienvenue {member.display_name} sur {member.guild.name} ! ",
-                    description=f"Je t'invite à te présenter ici <#1109914485055037520> \n et à lire le règlement dans <#1109265365906763837>"
+                    description=f"Je t'invite à te présenter \n et à lire le règlement"
                 )
                 embed.set_thumbnail(
                     url="https://discords.com/_next/image?url=https%3A%2F%2Fcdn.discordapp.com%2Fstickers%2F863087410577014805.png&w=128&q=75"

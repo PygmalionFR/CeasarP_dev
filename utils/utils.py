@@ -2,6 +2,21 @@ import discord
 from PIL import Image, ImageDraw, ImageFont
 import io
 import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Charge les variables d'environnement
+
+def get_db_connection():
+    import mysql.connector
+
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT")),  # Assure-toi que le port est un entier
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME")
+    )
 
 def create_xp_card(user, level, xp, max_xp):
     """Crée une carte d'XP avec la photo de profil du membre, son nom, son niveau et une barre de progression."""
@@ -24,18 +39,20 @@ def create_xp_card(user, level, xp, max_xp):
     # Initialiser le dessin sur l'image
     draw = ImageDraw.Draw(base_image)
 
-    # Charger la police
+    # Charger la police avec un chemin absolu
+    font_path = os.path.abspath("utils/Teko-bold.ttf")
     try:
-        font = ImageFont.truetype("utils/Teko-bold.ttf", 80)  # Charge une police (Teko-bold)
+        font = ImageFont.truetype(font_path, 90)
     except IOError:
-        font = ImageFont.load_default()  # Utilise une police par défaut si Teko-bold est indisponible
+        print("police marche pas")
+        font = ImageFont.load_default(90)
 
-    # Ajouter le nom du membre avec une bordure de 4 pixels
+    # Ajouter le nom du membre avec une bordure
     name_text = user.name
     text_bbox = draw.textbbox((0, 0), name_text, font=font)
     text_width = text_bbox[2] - text_bbox[0]
 
-    # Dessiner la bordure noire de 4 pixels
+    # Dessiner la bordure
     for dx in range(-4, 5):
         for dy in range(-4, 5):
             draw.text((450 + dx, 75 + dy), name_text, fill=(0, 0, 0), font=font)
@@ -68,19 +85,18 @@ def create_xp_card(user, level, xp, max_xp):
     draw.rectangle([98, 648, 100 + max_bar_width + 5, 748], outline=(165, 165, 165), width=8)
 
     # Ajout des stat
-    level_text = f"Statistique :\n\nLuck    : ??\nSagesse : ??"
-    text_bbox = draw.textbbox((0, 0), level_text, font=font)
+    stats_text = f"Statistique :\n\nLuck    : ??\nSagesse: ??"
+    text_bbox = draw.textbbox((0, 0), stats_text, font=font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
 
     # Dessiner la bordure
     for dx in range(-4, 5):
         for dy in range(-4, 5):
-            draw.text((1250 + dx, 75 + dy), level_text, fill=(0, 0, 0), font=font)
+            draw.text((1250 + dx, 75 + dy), stats_text, fill=(0, 0, 0), font=font)
 
     # Dessiner le texte avec une couleur de remplissage
-    draw.text((1250, 75), level_text, fill=(255, 255, 255), font=font)
-
+    draw.text((1250, 75), stats_text, fill=(255, 255, 255), font=font)
 
     # Sauvegarder l'image en mémoire pour Discord
     image_binary = io.BytesIO()
